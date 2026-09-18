@@ -77,25 +77,37 @@ st.markdown("""
         font-weight: 400;
     }
 
-    /* 顶部主导航选项卡 Tabs 字体颜色（清晰深色，防隐形） */
+    /* 顶部主导航选项卡 Tabs（兼容新旧版本 Streamlit，防深色模式隐形） */
+    div[data-testid="stTabs"] [role="tablist"],
     .stTabs [data-baseweb="tab-list"] {
         gap: 12px;
-        border-bottom: 1px solid #E2E8F0;
+        border-bottom: 1px solid #E2E8F0 !important;
         margin-bottom: 1.5rem;
     }
+    div[data-testid="stTabs"] button[role="tab"],
+    button[data-testid="stTab"],
     .stTabs [data-baseweb="tab"] {
-        padding: 10px 20px;
-        font-size: 1rem;
+        padding: 10px 20px !important;
+        font-size: 1rem !important;
         background: transparent !important;
-        border-radius: 8px 8px 0 0;
+        border-radius: 8px 8px 0 0 !important;
+        border-bottom: 2.5px solid transparent !important;
     }
+    /* 未选中 Tab：强制深灰文本 */
+    div[data-testid="stTabs"] button[role="tab"] *,
+    button[data-testid="stTab"] *,
     .stTabs [data-baseweb="tab"] * {
         color: #64748B !important;
         font-weight: 500 !important;
     }
+    /* 选中 Tab：强制深黑文本与底部高亮横线 */
+    div[data-testid="stTabs"] button[role="tab"][aria-selected="true"],
+    button[data-testid="stTab"][aria-selected="true"],
     .stTabs [data-baseweb="tab"][aria-selected="true"] {
         border-bottom: 2.5px solid #0F172A !important;
     }
+    div[data-testid="stTabs"] button[role="tab"][aria-selected="true"] *,
+    button[data-testid="stTab"][aria-selected="true"] *,
     .stTabs [data-baseweb="tab"][aria-selected="true"] * {
         color: #0F172A !important;
         font-weight: 700 !important;
@@ -142,6 +154,9 @@ st.markdown("""
     [data-testid="stSelectbox"] div[data-baseweb="select"] {
         background-color: #FFFFFF !important;
         border-radius: 8px !important;
+    }
+    [data-testid="stSelectbox"] div[data-baseweb="select"] * {
+        color: #1E293B !important;
     }
 
     /* KPI 卡片网格 */
@@ -216,10 +231,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # =====================================================================
-# 模块 1：发货单处理业务逻辑（100% 保留原始代码逻辑）
+# 模块 1：发货单处理业务逻辑
 # =====================================================================
 def beautify_excel(file_stream, col_width=15, row_height=20):
-    """美化Excel表格，并根据<货件编号>设置整行单元格颜色，处理所有相关Sheet（完全还原原始代码）"""
+    """美化Excel表格，并根据<货件编号>设置整行单元格颜色，处理所有相关Sheet"""
     try:
         wb = load_workbook(file_stream)
         
@@ -646,12 +661,12 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# 顶部主导航标签页（两个完全独立的工具）
+# 顶部主导航标签页
 tab_shipment, tab_invoice = st.tabs(["📦 发货单合并汇总工具", "📑 物流发票批量生成工具"])
 
 
 # =====================================================================
-# 工具 1：发货单合并汇总（完全独立）
+# 工具 1：发货单合并汇总
 # =====================================================================
 with tab_shipment:
     uploaded_ship_file = st.file_uploader(
@@ -717,7 +732,7 @@ with tab_shipment:
 
 
 # =====================================================================
-# 工具 2：物流发票批量生成（完全独立）
+# 工具 2：物流发票批量生成
 # =====================================================================
 with tab_invoice:
     carrier_option = st.selectbox(
@@ -988,7 +1003,7 @@ with tab_invoice:
                                 cell.font = Font(name='微软雅黑', size=9)
                                 cell.border = thin_border
 
-                        # 插入商品缩略图（默认开启）
+                        # 插入商品缩略图
                         val_img_url = item['val_img_url']
                         if col_img and pd.notna(val_img_url) and str(val_img_url).startswith(('http://', 'https://')):
                             try:
