@@ -15,13 +15,13 @@ from PIL import Image as PILImage
 
 # ===================== 页面全局配置 =====================
 st.set_page_config(
-    page_title="发货单与物流处理工具箱",
+    page_title="发货单处理工具 beta",
     page_icon="📦",
     layout="wide",
     initial_sidebar_state="collapsed"
 )
 
-# ===================== 云端默认配置 =====================
+# ===================== 发票云端默认配置 =====================
 INVOICE_CONFIG = {
     "kdocs_webhook": "https://www.kdocs.cn/api/v3/ide/file/cdH0A450EedY/script/V2-6x7HgWruLz4P74YP1PIsVf/sync_task",
     "kdocs_token": "RRZwCZarLOHD4gHKtfSVi",
@@ -230,75 +230,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-
-# =====================================================================
-# 通用模块：金山文档 / AirScript 云端数据拉取与通用解析
-# =====================================================================
-def parse_airscript_response(res_data):
-    """通用解析并标准化 AirScript 返回的多样结构为 DataFrame"""
-    result = res_data
-    if isinstance(res_data, dict):
-        if "data" in res_data and isinstance(res_data["data"], dict) and "result" in res_data["data"]:
-            result = res_data["data"]["result"]
-        elif "result" in res_data:
-            result = res_data["result"]
-        elif "data" in res_data and isinstance(res_data["data"], list):
-            result = res_data["data"]
-
-    if isinstance(result, list):
-        if len(result) == 0:
-            return pd.DataFrame()
-        first_item = result[0]
-        if isinstance(first_item, dict):
-            if 'fields' in first_item and isinstance(first_item['fields'], dict):
-                records = [item.get('fields', {}) for item in result if isinstance(item, dict)]
-                return pd.DataFrame(records)
-            return pd.DataFrame(result)
-        elif isinstance(first_item, (list, tuple)):
-            headers = [str(h).strip() for h in first_item]
-            rows = result[1:]
-            return pd.DataFrame(rows, columns=headers)
-    elif isinstance(result, dict):
-        if 'records' in result and isinstance(result['records'], list):
-            return parse_airscript_response(result['records'])
-        return pd.DataFrame([result])
-
-    return pd.DataFrame()
-
-def fetch_kdocs_po_data(webhook_url, api_token, timeout=25):
-    """请求金山文档 Webhook 拉取采购单主数据"""
-    url = webhook_url.strip()
-    token = api_token.strip()
-    if not url or not token:
-        raise ValueError("未配置有效的金山文档 Webhook 或 Token！")
-
-    headers = {
-        "AirScript-Token": token,
-        "Content-Type": "application/json; charset=utf-8",
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-    }
-    resp = requests.post(url, json={"Context": {"argv": {}}}, headers=headers, timeout=timeout)
-    if resp.status_code != 200:
-        raise ValueError(f"请求金山文档失败 (HTTP {resp.status_code}): {resp.text}")
-
-    res_json = resp.json()
-    if isinstance(res_json, dict) and res_json.get("status") == "error":
-        msg = res_json.get("message") or res_json.get("msg") or str(res_json)
-        raise ValueError(f"AirScript 执行报错: {msg}")
-
-    df = parse_airscript_response(res_json)
-    if df.empty:
-        raise ValueError(f"金山文档响应成功，但返回数据为空，原响应: {res_json}")
-    return df
-
-
 # =====================================================================
 # 模块 1：发货单处理业务逻辑
 # =====================================================================
 def beautify_excel(file_stream, col_width=15, row_height=20):
-    """美化Excel表格，并根据<货件编号>设置整行单元格颜色"""
+    """美化Excel表格，并根据<货件编号>设置整行单元格颜色，处理所有相关Sheet"""
     try:
         wb = load_workbook(file_stream)
+        
         font = Font(name='Calibri', size=11, bold=True)
         alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
         thin = Side(border_style="thin", color="000000")
@@ -360,6 +299,7 @@ def beautify_excel(file_stream, col_width=15, row_height=20):
         wb.save(output_stream)
         output_stream.seek(0)
         return output_stream
+
     except Exception as e:
         raise Exception(f"美化出错: {str(e)}")
 
@@ -436,6 +376,7 @@ def perform_summary(df):
 
     summary['外箱总体积'] = summary['外箱总体积'].fillna(0)
     summary['外箱总体积重(kg)'] = (summary['外箱总体积'] * 167).round(2)
+
     return summary
 
 def save_excel(df, summary_df):
@@ -447,10 +388,37 @@ def save_excel(df, summary_df):
     output.seek(0)
     return output
 
-
 # =====================================================================
 # 模块 2：物流发票处理业务逻辑
 # =====================================================================
+def fetch_kdocs_po_data(webhook_url, api_token):
+    url = webhook_url.strip()
+    token = api_token.strip()
+    if not url or not token:
+        raise ValueError("未配置有效的金山文档 Webhook 或 Token！")
+
+    headers = {"AirScript-Token": token, "Content-Type": "application/json"}
+    resp = requests.post(url, json={"Context": {"argv": {}}}, headers=headers, timeout=25)
+    if resp.status_code != 200:
+        raise ValueError(f"请求金山文档失败 (HTTP {resp.status_code}): {resp.text}")
+
+    res_json = resp.json()
+    data = None
+    if isinstance(res_json, dict):
+        if "data" in res_json and isinstance(res_json["data"], dict) and "result" in res_json["data"]:
+            data = res_json["data"]["result"]
+        elif "result" in res_json:
+            data = res_json["result"]
+        elif "data" in res_json and isinstance(res_json["data"], list):
+            data = res_json["data"]
+    elif isinstance(res_json, list):
+        data = res_json
+
+    if not data or not isinstance(data, list):
+        raise ValueError(f"金山文档未返回有效数据列表，返回内容: {res_json}")
+
+    return pd.DataFrame(data)
+
 def fetch_template_bytes(template_url, carrier_name):
     url = str(template_url).strip() if template_url else ""
     if "/blob/" in url:
@@ -682,28 +650,23 @@ class InvoiceProcessor:
             return f"{l_str}*{w_str}*{h_str}"
         return l_str or w_str or h_str or ""
 
-
 # =====================================================================
 # 页面顶部 Header
 # =====================================================================
 st.markdown("""
 <div class="header-box">
     <div class="header-badge">Logistics All-in-One</div>
-    <h1 class="header-title">发货单与物流处理工具箱</h1>
+    <h1 class="header-title">发货单处理工具</h1>
     <p class="header-subtitle">by Ryou</p>
 </div>
 """, unsafe_allow_html=True)
 
-# 顶部主导航标签页（3 个完全独立的功能）
-tab_shipment, tab_invoice, tab_pcs = st.tabs([
-    "📦 发货单合并汇总工具",
-    "📑 物流发票批量生成工具",
-    "🧮 货件 PCS 计算工具"
-])
+# 顶部主导航标签页
+tab_shipment, tab_invoice = st.tabs(["📦 发货单合并汇总工具", "📑 物流发票批量生成工具"])
 
 
 # =====================================================================
-# 工具 1：发货单合并汇总（完全独立）
+# 工具 1：发货单合并汇总
 # =====================================================================
 with tab_shipment:
     uploaded_ship_file = st.file_uploader(
@@ -721,6 +684,7 @@ with tab_shipment:
                 raw_excel = save_excel(merged_df, summary_df)
                 excel_bytes = beautify_excel(raw_excel)
 
+            # 4 个核心 KPI 指标卡
             total_boxes = int(summary_df['总箱数'].sum())
             total_weight = f"{summary_df['外箱总重量'].sum():,.2f}"
             total_vol = f"{summary_df['外箱总体积'].sum():,.2f}"
@@ -748,9 +712,11 @@ with tab_shipment:
             """, unsafe_allow_html=True)
 
             st.write("")
+
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             download_filename = f"发货单处理结果_{timestamp}.xlsx"
 
+            # 居中导出按钮
             col_left, col_btn, col_right = st.columns(3)
             with col_btn:
                 st.download_button(
@@ -760,12 +726,13 @@ with tab_shipment:
                     mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                     use_container_width=True
                 )
+
         except Exception as e:
             st.error(f"处理发生异常：{str(e)}")
 
 
 # =====================================================================
-# 工具 2：物流发票批量生成（完全独立）
+# 工具 2：物流发票批量生成
 # =====================================================================
 with tab_invoice:
     carrier_option = st.selectbox(
@@ -835,6 +802,7 @@ with tab_invoice:
                     current_idx += 1
                     first_row_data = group_df.iloc[0].to_dict()
 
+                    # 物流识别
                     current_carrier = ""
                     if carrier_option != "【自动识别】按表格物流列":
                         current_carrier = InvoiceProcessor.normalize_carrier_name(carrier_option)
@@ -855,9 +823,10 @@ with tab_invoice:
 
                     template_bytes = template_cache.get(current_carrier)
                     if not template_bytes:
-                        skipped_records.append({'货件编号': fba_shipment_id, '识别物流': current_carrier, '原因': '未获取到发票模板'})
+                        skipped_records.append({'货件编号': fba_shipment_id, '识别物流': current_carrier, '原因': '未配置发票模板'})
                         continue
 
+                    # 提取账号与仓码
                     account_name = "未知"
                     for _, s_row in group_df.iterrows():
                         s_sku = InvoiceProcessor.clean_sku(s_row.get(ship_sku_col, ''))
@@ -919,6 +888,7 @@ with tab_invoice:
                             'val_img_url': InvoiceProcessor.get_dict_val(s_dict, ['商品图片', '图片'])
                         })
 
+                    # 箱号合并
                     raw_items.sort(key=lambda it: min(it['parsed_boxes']) if it.get('parsed_boxes') else 999999)
                     merged_items = []
                     for item in raw_items:
@@ -946,6 +916,7 @@ with tab_invoice:
                     final_items = merged_items
                     total_boxes = sum(it['box_count'] for it in raw_items) or len(all_shipment_boxes) or len(group_df)
 
+                    # 写入 Workbook
                     wb = openpyxl.load_workbook(io.BytesIO(template_bytes))
                     ws = wb.active
 
@@ -1032,6 +1003,7 @@ with tab_invoice:
                                 cell.font = Font(name='微软雅黑', size=9)
                                 cell.border = thin_border
 
+                        # 插入商品缩略图
                         val_img_url = item['val_img_url']
                         if col_img and pd.notna(val_img_url) and str(val_img_url).startswith(('http://', 'https://')):
                             try:
@@ -1059,12 +1031,14 @@ with tab_invoice:
 
                     progress_bar.progress(int(40 + (current_idx / total_groups) * 55))
 
+                # 未匹配清单
                 if missing_records:
                     miss_df = pd.DataFrame(missing_records)
                     miss_buf = io.BytesIO()
                     miss_df.to_excel(miss_buf, index=False)
                     generated_zip_files[f"未匹配缺失SKU清单_{datetime.now().strftime('%Y%m%d_%H%M%S')}.xlsx"] = miss_buf.getvalue()
 
+                # 打包成 ZIP
                 zip_buffer = io.BytesIO()
                 with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
                     for fn, data in generated_zip_files.items():
@@ -1074,6 +1048,7 @@ with tab_invoice:
                 progress_bar.progress(100)
                 status_text.text("✅ 所有货件发票处理完毕！")
 
+                # 统计卡片
                 st.markdown(f"""
                 <div class="metric-container">
                     <div class="metric-card">
@@ -1097,13 +1072,12 @@ with tab_invoice:
 
                 if skipped_records:
                     st.warning(f"⚠️ 有 {len(skipped_records)} 个货件因模板未配置或无法匹配而跳过。")
-                    with st.expander("🔍 点击查看跳过的货件明细"):
-                        st.dataframe(pd.DataFrame(skipped_records), use_container_width=True)
-
                 if missing_records:
                     st.info(f"💡 检测到 {len(missing_records)} 条 SKU 未在采购单中匹配，已自动生成明细表放入压缩包中。")
 
                 st.write("")
+
+                # 居中下载按钮
                 zip_filename = f"物流发票打包_{datetime.now().strftime('%Y%m%d_%H%M%S')}.zip"
                 col_l, col_m, col_r = st.columns(3)
                 with col_m:
@@ -1111,168 +1085,6 @@ with tab_invoice:
                         label="⬇️ 一键下载全部发票 (ZIP 压缩包)",
                         data=zip_buffer,
                         file_name=zip_filename,
-                        mime="application/zip",
-                        use_container_width=True
-                    )
-            except Exception as e:
-                st.error(f"处理失败：{str(e)}")
-
-
-# =====================================================================
-# 工具 3：货件 PCS 计算工具（完全独立）
-# =====================================================================
-with tab_pcs:
-    st.markdown("##### 1. 云端采购单数据源绑定")
-    col_k1, col_k2 = st.columns()
-    with col_k1:
-        st.info("🔗 当前已自动绑定金山文档 / AirScript 采购单在线数据源")
-    with col_k2:
-        if st.button("🔄 测试云端连接", use_container_width=True, key="btn_test_pcs_sync"):
-            with st.spinner("正在连接云端测试拉取采购单..."):
-                try:
-                    test_df = fetch_kdocs_po_data(INVOICE_CONFIG["kdocs_webhook"], INVOICE_CONFIG["kdocs_token"])
-                    st.success(f"✅ 连接成功！共获取到 {len(test_df)} 条采购单记录")
-                except Exception as e:
-                    st.error(f"❌ 连接失败：{str(e)}")
-
-    st.markdown("##### 2. 上传发货单文件")
-    uploaded_pcs_file = st.file_uploader(
-        "上传发货单 Excel 文件（.xlsx / .xls）",
-        type=["xlsx", "xls"],
-        help="需包含「SKU」、「发货量」、「货件编号」等基础字段",
-        key="pcs_uploader"
-    )
-
-    if uploaded_pcs_file is not None:
-        if st.button("🧮 开始拉取并计算 PCS", use_container_width=True, key="btn_run_pcs"):
-            try:
-                with st.spinner("【1/3】正在从云端拉取采购单数据..."):
-                    purchase_df = fetch_kdocs_po_data(INVOICE_CONFIG["kdocs_webhook"], INVOICE_CONFIG["kdocs_token"])
-                    purchase_df.columns = [str(c).strip() for c in purchase_df.columns]
-
-                    # 智能列名映射（品名/中文品名，PCS/单箱数量/箱规）
-                    if "中文品名" not in purchase_df.columns and "品名" in purchase_df.columns:
-                        purchase_df["中文品名"] = purchase_df["品名"]
-
-                    if "PCS" not in purchase_df.columns:
-                        if "单箱数量" in purchase_df.columns:
-                            purchase_df["PCS"] = purchase_df["单箱数量"]
-                        elif "箱规" in purchase_df.columns:
-                            purchase_df["PCS"] = purchase_df["箱规"]
-
-                    required_purchase_cols = ["SKU", "中文品名", "PCS"]
-                    for col in required_purchase_cols:
-                        if col not in purchase_df.columns:
-                            raise ValueError(f"云端采购单中缺少必需列：【{col}】，现有列: {list(purchase_df.columns)}")
-
-                with st.spinner("【2/3】正在解析发货单明细..."):
-                    uploaded_pcs_file.seek(0)
-                    delivery_df = pd.read_excel(uploaded_pcs_file)
-                    delivery_df.columns = [str(c).strip() for c in delivery_df.columns]
-
-                    # 兼容不同来源的发货单表头
-                    col_map = {}
-                    for c in delivery_df.columns:
-                        c_clean = str(c).strip()
-                        if c_clean in ['SKU(发货商品)', '商品SKU']:
-                            col_map[c] = 'SKU'
-                        elif c_clean in ['发货量(发货商品)', '发货数量']:
-                            col_map[c] = '发货量'
-                        elif c_clean in ['货件编号(发货商品)', '货件号', 'FBA货件编号']:
-                            col_map[c] = '货件编号'
-
-                    if col_map:
-                        delivery_df.rename(columns=col_map, inplace=True)
-
-                    required_delivery_cols = ["SKU", "发货量", "货件编号"]
-                    for col in required_delivery_cols:
-                        if col not in delivery_df.columns:
-                            raise ValueError(f"发货单中缺少必需列：【{col}】，现有列: {list(delivery_df.columns)}")
-
-                with st.spinner("【3/3】正在匹配 SKU 并计算总 PCS..."):
-                    purchase_df["SKU"] = purchase_df["SKU"].astype(str).str.strip()
-                    delivery_df["SKU"] = delivery_df["SKU"].astype(str).str.strip()
-
-                    purchase_mapping = purchase_df[["SKU", "中文品名", "PCS"]].drop_duplicates(subset=["SKU"])
-                    delivery_updated = pd.merge(delivery_df, purchase_mapping, on="SKU", how="left")
-
-                    delivery_updated["PCS"] = pd.to_numeric(delivery_updated["PCS"], errors="coerce").fillna(0)
-                    delivery_updated["发货量"] = pd.to_numeric(delivery_updated["发货量"], errors="coerce").fillna(0)
-                    delivery_updated["总PCS"] = delivery_updated["发货量"] * delivery_updated["PCS"]
-
-                    summary_data = delivery_updated.groupby(["货件编号", "中文品名"], dropna=False).agg({
-                        "总PCS": "sum"
-                    }).reset_index()[["货件编号", "中文品名", "总PCS"]]
-
-                st.success("🎉 数据处理与 PCS 计算完成！")
-
-                # 指标展示卡片
-                total_pcs_cnt = int(summary_data["总PCS"].sum())
-                total_shipments = summary_data["货件编号"].nunique()
-                total_skus = delivery_updated["SKU"].nunique()
-                total_send_qty = int(delivery_updated["发货量"].sum())
-
-                st.markdown(f"""
-                <div class="metric-container">
-                    <div class="metric-card">
-                        <div class="metric-title">涉及货件数</div>
-                        <div class="metric-num">{total_shipments:,}<span class="metric-unit">个</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-title">商品 SKU 数</div>
-                        <div class="metric-num">{total_skus:,}<span class="metric-unit">款</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-title">总发货箱量</div>
-                        <div class="metric-num">{total_send_qty:,}<span class="metric-unit">件</span></div>
-                    </div>
-                    <div class="metric-card">
-                        <div class="metric-title">计算总 PCS</div>
-                        <div class="metric-num">{total_pcs_cnt:,}<span class="metric-unit">PCS</span></div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-
-                # 数据表格预览
-                st.markdown("##### 📊 货件编号与品名 PCS 汇总预览")
-                st.dataframe(summary_data, use_container_width=True)
-
-                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-
-                # 生成单个 Excel（包含明细与汇总两个 Sheet）
-                single_excel_buf = io.BytesIO()
-                with pd.ExcelWriter(single_excel_buf, engine='openpyxl') as writer:
-                    delivery_updated.to_excel(writer, sheet_name='发货单_已更新', index=False)
-                    summary_data.to_excel(writer, sheet_name='货件编号_总PCS汇总', index=False)
-                single_excel_buf.seek(0)
-
-                # 生成 ZIP 压缩包（包含两个独立文件）
-                f1_buf = io.BytesIO()
-                delivery_updated.to_excel(f1_buf, index=False)
-                f2_buf = io.BytesIO()
-                summary_data.to_excel(f2_buf, index=False)
-
-                pcs_zip_buf = io.BytesIO()
-                with zipfile.ZipFile(pcs_zip_buf, "w", zipfile.ZIP_DEFLATED) as zf:
-                    zf.writestr(f"发货单_已更新_{timestamp}.xlsx", f1_buf.getvalue())
-                    zf.writestr(f"货件编号_总PCS汇总表_{timestamp}.xlsx", f2_buf.getvalue())
-                pcs_zip_buf.seek(0)
-
-                st.write("")
-                col_d1, col_d2 = st.columns(2)
-                with col_d1:
-                    st.download_button(
-                        label="⬇️ 导出双Sheet整合 Excel 文件",
-                        data=single_excel_buf,
-                        file_name=f"发货单PCS计算结果_{timestamp}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        use_container_width=True
-                    )
-                with col_d2:
-                    st.download_button(
-                        label="📦 下载独立双文件压缩包 (ZIP)",
-                        data=pcs_zip_buf,
-                        file_name=f"PCS计算表格打包_{timestamp}.zip",
                         mime="application/zip",
                         use_container_width=True
                     )
