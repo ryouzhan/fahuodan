@@ -16,11 +16,11 @@ st.set_page_config(
 # ===================== 简约高级页面样式 (CSS) =====================
 st.markdown("""
 <style>
-    /* 全局背景与字体 */
+    /* 全局背景与字体（强制浅色） */
     .stApp {
-        background-color: #F8FAFC;
+        background-color: #F8FAFC !important;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-        color: #1E293B;
+        color: #1E293B !important;
     }
 
     /* 隐藏 Streamlit 默认顶部条与水印 */
@@ -30,8 +30,8 @@ st.markdown("""
 
     /* 页面顶部 Header 样式 */
     .header-box {
-        padding: 2.2rem 0 1.2rem 0;
-        margin-bottom: 1.5rem;
+        padding: 2rem 0 1rem 0;
+        margin-bottom: 1rem;
     }
     .header-badge {
         display: inline-block;
@@ -48,29 +48,55 @@ st.markdown("""
     .header-title {
         font-size: 1.95rem;
         font-weight: 700;
-        color: #0F172A;
+        color: #0F172A !important;
         letter-spacing: -0.025em;
         margin: 0;
     }
     .header-subtitle {
         font-size: 0.95rem;
-        color: #64748B;
+        color: #64748B !important;
         margin-top: 0.4rem;
         font-weight: 400;
     }
 
-    /* 上传区域精致化卡片 */
+    /* 【核心修复】强制上传卡片为纯白高亮、告别黑底 */
     [data-testid="stFileUploader"] {
-        background: #FFFFFF;
-        border: 1px dashed #CBD5E1;
-        border-radius: 12px;
-        padding: 1rem;
-        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.02);
-        transition: all 0.2s ease;
+        background: transparent !important;
     }
-    [data-testid="stFileUploader"]:hover {
-        border-color: #3B82F6;
-        box-shadow: 0 4px 12px 0 rgba(59, 130, 246, 0.06);
+    [data-testid="stFileUploader"] section {
+        background-color: #FFFFFF !important;
+        border: 1.5px dashed #CBD5E1 !important;
+        border-radius: 12px !important;
+        padding: 1.5rem 1rem !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+        transition: all 0.2s ease !important;
+    }
+    [data-testid="stFileUploader"] section:hover {
+        border-color: #3B82F6 !important;
+        background-color: #F8FAFC !important;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.06) !important;
+    }
+    /* 强制上传框内文字为清晰深色 */
+    [data-testid="stFileUploader"] section * {
+        color: #475569 !important;
+    }
+    /* 上传按钮样式美化 */
+    [data-testid="stFileUploader"] section button {
+        background-color: #F1F5F9 !important;
+        color: #0F172A !important;
+        border: 1px solid #E2E8F0 !important;
+        border-radius: 8px !important;
+        font-weight: 500 !important;
+    }
+    [data-testid="stFileUploader"] section button:hover {
+        background-color: #E2E8F0 !important;
+    }
+    /* 强制标题文字清晰可见 */
+    [data-testid="stFileUploader"] label,
+    [data-testid="stFileUploader"] label p {
+        color: #1E293B !important;
+        font-size: 0.95rem !important;
+        font-weight: 600 !important;
     }
 
     /* 指标卡片网格与设计 */
@@ -116,11 +142,14 @@ st.markdown("""
 
     /* 折叠面板 (Expander) 精致化卡片样式 */
     [data-testid="stExpander"] {
-        background: #FFFFFF;
+        background: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
         border-radius: 10px !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
-        margin: 1rem 0;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
+        margin: 1rem 0 !important;
+    }
+    [data-testid="stExpander"] * {
+        color: #1E293B !important;
     }
 
     /* 选项卡 Tabs 简约设计 */
@@ -131,7 +160,7 @@ st.markdown("""
     .stTabs [data-baseweb="tab"] {
         padding: 8px 16px;
         font-weight: 500;
-        color: #64748B;
+        color: #64748B !important;
         border-radius: 6px 6px 0 0;
     }
     .stTabs [aria-selected="true"] {
@@ -159,7 +188,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# ===================== 原始数据处理与表格逻辑（保留原汁原味） =====================
+# ===================== 原始数据处理与表格逻辑 =====================
 def beautify_excel(file_stream, col_width=15, row_height=20):
     """美化Excel表格，并根据<货件编号>设置整行单元格颜色，处理所有相关Sheet（完全还原原始代码）"""
     try:
@@ -365,7 +394,7 @@ if uploaded_file is not None:
         </div>
         """, unsafe_allow_html=True)
 
-        # 2. 默认折叠的数据预览区域（保持页面整体紧凑简洁）
+        # 2. 默认折叠的数据预览区域
         with st.expander("📊 查看数据明细预览（点击展开 / 折叠）", expanded=False):
             tab1, tab2 = st.tabs(["汇总结果", "合并明细预览"])
 
