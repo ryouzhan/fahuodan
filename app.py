@@ -7,7 +7,7 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 
 # ===================== 页面全局配置 =====================
 st.set_page_config(
-    page_title="发货单处理工具web版 v1.1",
+    page_title="发货单处理工具 beta",
     page_icon="📦",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -30,8 +30,8 @@ st.markdown("""
 
     /* 页面顶部 Header 样式 */
     .header-box {
-        padding: 2rem 0 1rem 0;
-        margin-bottom: 1rem;
+        padding: 2.2rem 0 1.2rem 0;
+        margin-bottom: 1.2rem;
     }
     .header-badge {
         display: inline-block;
@@ -46,7 +46,7 @@ st.markdown("""
         margin-bottom: 0.6rem;
     }
     .header-title {
-        font-size: 1.95rem;
+        font-size: 2rem;
         font-weight: 700;
         color: #0F172A !important;
         letter-spacing: -0.025em;
@@ -59,7 +59,7 @@ st.markdown("""
         font-weight: 400;
     }
 
-    /* 上传框纯白样式 */
+    /* 上传框纯白高质感卡片 */
     [data-testid="stFileUploader"] {
         background: transparent !important;
     }
@@ -93,16 +93,16 @@ st.markdown("""
         font-weight: 600 !important;
     }
 
-    /* KPI 指标卡片 */
+    /* KPI 指标卡片网格 */
     .metric-container {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
         gap: 1.2rem;
-        margin: 1.5rem 0 1.5rem 0;
+        margin: 1.8rem 0 2rem 0;
     }
     .metric-card {
         background: #FFFFFF;
-        padding: 1.4rem 1.2rem;
+        padding: 1.5rem 1.3rem;
         border-radius: 12px;
         border: 1px solid #E2E8F0;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03), 0 4px 12px rgba(0, 0, 0, 0.02);
@@ -110,72 +110,28 @@ st.markdown("""
     }
     .metric-card:hover {
         transform: translateY(-2px);
-        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+        box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
     }
     .metric-title {
         font-size: 0.82rem;
         font-weight: 500;
         color: #64748B;
-        margin-bottom: 0.4rem;
+        margin-bottom: 0.45rem;
         text-transform: uppercase;
         letter-spacing: 0.025em;
     }
     .metric-num {
-        font-size: 1.75rem;
+        font-size: 1.85rem;
         font-weight: 700;
         color: #0F172A;
         letter-spacing: -0.03em;
         line-height: 1.2;
     }
     .metric-unit {
-        font-size: 0.85rem;
+        font-size: 0.9rem;
         font-weight: 500;
         color: #94A3B8;
-        margin-left: 0.2rem;
-    }
-
-    /* 【核心修复】强制折叠栏（Expander）标题与内容完全为纯白底色 */
-    [data-testid="stExpander"],
-    details[data-testid="stExpander"] {
-        background-color: #FFFFFF !important;
-        border: 1px solid #E2E8F0 !important;
-        border-radius: 10px !important;
-        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
-        margin: 1rem 0 !important;
-    }
-    details[data-testid="stExpander"] summary {
-        background-color: #FFFFFF !important;
-        color: #1E293B !important;
-        border-radius: 10px !important;
-    }
-    details[data-testid="stExpander"] summary:hover {
-        background-color: #F8FAFC !important;
-    }
-    details[data-testid="stExpander"] summary * {
-        color: #1E293B !important;
-    }
-    details[data-testid="stExpander"] > div {
-        background-color: #FFFFFF !important;
-        padding: 0.5rem 1rem !important;
-    }
-
-    /* 选项卡 Tabs 简约设计 */
-    .stTabs [data-baseweb="tab-list"] {
-        background-color: transparent !important;
-        gap: 8px;
-        border-bottom: 1px solid #E2E8F0;
-    }
-    .stTabs [data-baseweb="tab"] {
-        background-color: transparent !important;
-        padding: 8px 16px;
-        font-weight: 500;
-        color: #64748B !important;
-        border-radius: 6px 6px 0 0;
-    }
-    .stTabs [aria-selected="true"] {
-        color: #0F172A !important;
-        border-bottom: 2px solid #0F172A !important;
-        font-weight: 600;
+        margin-left: 0.25rem;
     }
 
     /* 下载按钮高级样式 */
@@ -184,14 +140,15 @@ st.markdown("""
         color: #FFFFFF !important;
         font-weight: 500 !important;
         border: none !important;
-        border-radius: 8px !important;
-        padding: 0.6rem 1.6rem !important;
-        box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12) !important;
+        border-radius: 10px !important;
+        padding: 0.75rem 2rem !important;
+        font-size: 1rem !important;
+        box-shadow: 0 3px 10px rgba(15, 23, 42, 0.15) !important;
         transition: all 0.18s ease-in-out !important;
     }
     .stDownloadButton button:hover {
         background-color: #1E293B !important;
-        box-shadow: 0 4px 12px rgba(15, 23, 42, 0.22) !important;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.25) !important;
         transform: translateY(-1px);
     }
 </style>
@@ -376,7 +333,7 @@ if uploaded_file is not None:
             raw_excel = save_excel(merged_df, summary_df)
             excel_bytes = beautify_excel(raw_excel)
 
-        # 1. 核心 KPI 指标卡片
+        # 核心 KPI 指标卡片
         total_boxes = int(summary_df['总箱数'].sum())
         total_weight = f"{summary_df['外箱总重量'].sum():,.2f}"
         total_vol = f"{summary_df['外箱总体积'].sum():,.2f}"
@@ -403,27 +360,9 @@ if uploaded_file is not None:
         </div>
         """, unsafe_allow_html=True)
 
-        # 2. 默认折叠的数据预览区域（白底微边框卡片）
-        with st.expander("📊 查看数据明细预览（点击展开 / 折叠）", expanded=False):
-            tab1, tab2 = st.tabs(["汇总结果", "合并明细预览"])
+        st.write("")  # 适当留白
 
-            with tab1:
-                st.dataframe(
-                    summary_df,
-                    use_container_width=True,
-                    height=320
-                )
-
-            with tab2:
-                st.dataframe(
-                    merged_df.head(100),
-                    use_container_width=True,
-                    height=320
-                )
-
-        st.write("")
-
-        # 3. 居中导出按钮
+        # 居中下载按钮
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         download_filename = f"发货单处理结果_{timestamp}.xlsx"
 
