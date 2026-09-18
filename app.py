@@ -16,14 +16,14 @@ st.set_page_config(
 # ===================== 简约高级页面样式 (CSS) =====================
 st.markdown("""
 <style>
-    /* 全局背景与字体（强制浅色） */
+    /* 全局背景与字体 */
     .stApp {
         background-color: #F8FAFC !important;
         font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
         color: #1E293B !important;
     }
 
-    /* 隐藏 Streamlit 默认顶部条与水印 */
+    /* 隐藏顶部冗余条与水印 */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -59,7 +59,7 @@ st.markdown("""
         font-weight: 400;
     }
 
-    /* 【核心修复】强制上传卡片为纯白高亮、告别黑底 */
+    /* 上传框纯白样式 */
     [data-testid="stFileUploader"] {
         background: transparent !important;
     }
@@ -76,11 +76,9 @@ st.markdown("""
         background-color: #F8FAFC !important;
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.06) !important;
     }
-    /* 强制上传框内文字为清晰深色 */
     [data-testid="stFileUploader"] section * {
         color: #475569 !important;
     }
-    /* 上传按钮样式美化 */
     [data-testid="stFileUploader"] section button {
         background-color: #F1F5F9 !important;
         color: #0F172A !important;
@@ -88,10 +86,6 @@ st.markdown("""
         border-radius: 8px !important;
         font-weight: 500 !important;
     }
-    [data-testid="stFileUploader"] section button:hover {
-        background-color: #E2E8F0 !important;
-    }
-    /* 强制标题文字清晰可见 */
     [data-testid="stFileUploader"] label,
     [data-testid="stFileUploader"] label p {
         color: #1E293B !important;
@@ -99,7 +93,7 @@ st.markdown("""
         font-weight: 600 !important;
     }
 
-    /* 指标卡片网格与设计 */
+    /* KPI 指标卡片 */
     .metric-container {
         display: grid;
         grid-template-columns: repeat(4, 1fr);
@@ -140,24 +134,39 @@ st.markdown("""
         margin-left: 0.2rem;
     }
 
-    /* 折叠面板 (Expander) 精致化卡片样式 */
-    [data-testid="stExpander"] {
-        background: #FFFFFF !important;
+    /* 【核心修复】强制折叠栏（Expander）标题与内容完全为纯白底色 */
+    [data-testid="stExpander"],
+    details[data-testid="stExpander"] {
+        background-color: #FFFFFF !important;
         border: 1px solid #E2E8F0 !important;
         border-radius: 10px !important;
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02) !important;
         margin: 1rem 0 !important;
     }
-    [data-testid="stExpander"] * {
+    details[data-testid="stExpander"] summary {
+        background-color: #FFFFFF !important;
         color: #1E293B !important;
+        border-radius: 10px !important;
+    }
+    details[data-testid="stExpander"] summary:hover {
+        background-color: #F8FAFC !important;
+    }
+    details[data-testid="stExpander"] summary * {
+        color: #1E293B !important;
+    }
+    details[data-testid="stExpander"] > div {
+        background-color: #FFFFFF !important;
+        padding: 0.5rem 1rem !important;
     }
 
     /* 选项卡 Tabs 简约设计 */
     .stTabs [data-baseweb="tab-list"] {
+        background-color: transparent !important;
         gap: 8px;
         border-bottom: 1px solid #E2E8F0;
     }
     .stTabs [data-baseweb="tab"] {
+        background-color: transparent !important;
         padding: 8px 16px;
         font-weight: 500;
         color: #64748B !important;
@@ -394,7 +403,7 @@ if uploaded_file is not None:
         </div>
         """, unsafe_allow_html=True)
 
-        # 2. 默认折叠的数据预览区域
+        # 2. 默认折叠的数据预览区域（白底微边框卡片）
         with st.expander("📊 查看数据明细预览（点击展开 / 折叠）", expanded=False):
             tab1, tab2 = st.tabs(["汇总结果", "合并明细预览"])
 
